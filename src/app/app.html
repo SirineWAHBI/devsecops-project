@@ -1,0 +1,116 @@
+<div class="container">
+
+  <h1>DevSecOps Project</h1>
+
+  <p class="subtitle">
+    Formulaire d'inscription sécurisé
+  </p>
+
+  <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
+
+    <!-- Username -->
+    <div class="form-group">
+      <label for="username">Nom d'utilisateur</label>
+
+      <input
+        id="username"
+        type="text"
+        formControlName="username"
+        placeholder="Ex: sirine123"
+      />
+
+      @if (submitted && registrationForm.controls.username.errors) {
+        <div class="error">
+
+          @if (registrationForm.controls.username.errors['required']) {
+            <p>Le nom d'utilisateur est obligatoire.</p>
+          }
+
+          @if (registrationForm.controls.username.errors['minlength']) {
+            <p>Minimum 3 caractères.</p>
+          }
+
+          @if (registrationForm.controls.username.errors['maxlength']) {
+            <p>Maximum 20 caractères.</p>
+          }
+
+          @if (registrationForm.controls.username.errors['pattern']) {
+            <p>
+              Seulement les lettres, chiffres et underscore sont autorisés.
+            </p>
+          }
+
+        </div>
+      }
+    </div>
+
+
+    <!-- Email -->
+    <div class="form-group">
+
+      <label for="email">Email</label>
+
+      <input
+        id="email"
+        type="email"
+        formControlName="email"
+        placeholder="exemple@email.com"
+      />
+
+      @if (submitted && registrationForm.controls.email.errors) {
+
+        <div class="error">
+
+          @if (registrationForm.controls.email.errors['required']) {
+            <p>L'email est obligatoire.</p>
+          }
+
+          @if (registrationForm.controls.email.errors['email']) {
+            <p>Veuillez entrer une adresse email valide.</p>
+          }
+
+        </div>
+
+      }
+
+    </div>
+
+
+    <!-- Password -->
+    <div class="form-group">
+
+      <label for="password">Mot de passe</label>
+
+      <input
+        id="password"
+        type="password"
+        formControlName="password"
+        placeholder="Minimum 8 caractères"
+      />
+
+      @if (submitted && registrationForm.controls.password.errors) {
+
+        <div class="error">
+
+          @if (registrationForm.controls.password.errors['required']) {
+            <p>Le mot de passe est obligatoire.</p>
+          }
+
+          @if (registrationForm.controls.password.errors['minlength']) {
+            <p>Le mot de passe doit contenir au moins 8 caractères.</p>
+          }
+
+        </div>
+
+      }
+
+    </div>
+
+
+    <button type="submit">
+      S'inscrire
+    </button>
+
+  </form>
+
+</div>

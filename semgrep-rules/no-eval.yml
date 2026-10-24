@@ -1,0 +1,6 @@
+rules:
+  - id: no-eval-usage
+    languages: [typescript, javascript]
+    message: "Usage de eval() détecté — risque d'exécution de code arbitraire (injection)."
+    severity: ERROR
+    pattern: eval(...)

@@ -1,0 +1,144 @@
+# =====================================================================
+# Pipeline DevSecOps - devsecops-project
+# Runner : windows-local (shell PowerShell).
+# Tous les contrôles sont bloquants (aucun allow_failure).
+# Les 5 contrôles de sécurité démarrent sans attendre les autres
+# (needs: []) pour que chaque échec soit visible séparément ;
+# le staging n'est déployé que si tous réussissent ; le DAST suit.
+# =====================================================================
+stages:
+  - secrets_scan
+  - sast
+  - scan_dependencies
+  - docker_scan
+  - deploy
+  - dast
+
+# ---------------------------------------------------------------------
+# secret_detection : détecte les secrets en clair (clés API, tokens).
+# Outil : Gitleaks | Bloquant : oui (--exit-code 1)
+# Limite : --no-git = fichiers courants uniquement, pas l'historique.
+# ---------------------------------------------------------------------
+secret_detection:
+  stage: secrets_scan
+  needs: []
+  tags:
+    - windows-local
+  script:
+    - '& "C:\Users\wahbi\AppData\Local\Microsoft\WinGet\Packages\Gitleaks.Gitleaks_Microsoft.Winget.Source_8wekyb3d8bbwe\gitleaks.exe" detect --source . --report-format json --report-path gitleaks-report.json --exit-code 1 --no-git'
+  artifacts:
+    paths:
+      - gitleaks-report.json
+    when: always
+
+# ---------------------------------------------------------------------
+# sast : analyse statique du code source.
+# Outil : Semgrep (règle perso no-eval + OWASP Top 10 + TypeScript)
+# Bloquant : oui (--error, tout finding fait échouer le job)
+# ---------------------------------------------------------------------
+sast:
+  stage: sast
+  needs: []
+  tags:
+    - windows-local
+  script:
+    - '& "C:\Users\wahbi\AppData\Local\Python\pythoncore-3.14-64\Scripts\semgrep.exe" scan --config=semgrep-rules/no-eval.yml --config=p/owasp-top-ten --config=p/typescript --json --output semgrep-report.json --error .'
+  artifacts:
+    paths:
+      - semgrep-report.json
+    when: always
+
+# ---------------------------------------------------------------------
+# sca_npm : dépendances npm vulnérables.
+# Outil : npm audit | Bloquant : sévérité high ou plus
+# ---------------------------------------------------------------------
+sca_npm:
+  stage: scan_dependencies
+  needs: []
+  tags:
+    - windows-local
+  script:
+    - 'npm audit --audit-level=high --json | Out-File -Encoding utf8 npm-audit-report.json'
+    - 'npm audit --audit-level=high'
+  artifacts:
+    paths:
+      - npm-audit-report.json
+    when: always
+
+# ---------------------------------------------------------------------
+# sca_maven : dépendances Maven vulnérables.
+# Outil : OWASP Dependency-Check | Bloquant : CVSS >= 7 (sévérité High)
+# La clé NVD_API_KEY vient d'une variable CI masquée.
+# ---------------------------------------------------------------------
+sca_maven:
+  stage: scan_dependencies
+  needs: []
+  tags:
+    - windows-local
+  script:
+    - 'cd backend; .\mvnw.cmd org.owasp:dependency-check-maven:check "-DfailBuildOnCVSS=7" "-Dnvd.api.key=$env:NVD_API_KEY"'
+  artifacts:
+    paths:
+      - backend/target/dependency-check-report.html
+      - backend/target/dependency-check-report.json
+    when: always
+
+# ---------------------------------------------------------------------
+# container_scan : vulnérabilités et secrets de l'image Docker.
+# Outil : Trivy | Bloquant : HIGH et CRITICAL (--exit-code 1)
+# La base de vulnérabilités est lue depuis un cache local
+# (C:\trivy-cache) pour ne pas dépendre du réseau (ghcr.io).
+# À mettre à jour régulièrement : trivy image --download-db-only
+# ---------------------------------------------------------------------
+container_scan:
+  stage: docker_scan
+  needs: []
+  tags:
+    - windows-local
+  script:
+    - 'docker build --no-cache -t devsecops-frontend:latest .'
+    - '& "C:\Users\wahbi\AppData\Local\Microsoft\WinGet\Packages\AquaSecurity.Trivy_Microsoft.Winget.Source_8wekyb3d8bbwe\trivy.exe" image --timeout 15m --cache-dir C:\trivy-cache --skip-db-update --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1 --format json --output trivy-report.json devsecops-frontend:latest'
+  artifacts:
+    paths:
+      - trivy-report.json
+    when: always
+
+# ---------------------------------------------------------------------
+# deploy_staging : déploie l'image dans un conteneur de staging.
+# Ne démarre que si les 5 contrôles précédents ont réussi.
+# Vérifie ensuite que l'application répond (curl -f).
+# ---------------------------------------------------------------------
+deploy_staging:
+  stage: deploy
+  needs:
+    - secret_detection
+    - sast
+    - sca_npm
+    - sca_maven
+    - container_scan
+  tags:
+    - windows-local
+  script:
+    - 'docker rm -f devsecops-staging *>$null; $LASTEXITCODE = 0'
+    - 'docker run -d --name devsecops-staging -p 8090:80 devsecops-frontend:latest'
+    - 'Start-Sleep -Seconds 5'
+    - 'curl.exe -f http://localhost:8090 -o nul -s -w "Deployment check: HTTP %{http_code}`n"'
+
+# ---------------------------------------------------------------------
+# dast : test dynamique de l'application déployée en staging.
+# Outil : OWASP ZAP baseline (scan passif)
+# Les faux positifs justifiés sont classés dans .zap/rules.tsv.
+# Amélioration : épingler l'image sur une version fixe
+# (tester d'abord : docker pull zaproxy/zap-stable:2.17.0).
+# ---------------------------------------------------------------------
+dast:
+  stage: dast
+  tags:
+    - windows-local
+  script:
+    - 'docker run --rm -v ${PWD}:/zap/wrk/:rw zaproxy/zap-stable zap-baseline.py --autooff -t http://host.docker.internal:8090 -c .zap/rules.tsv -r zap-report.html -J zap-report.json'
+  artifacts:
+    paths:
+      - zap-report.html
+      - zap-report.json
+    when: always

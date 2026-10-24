@@ -1,0 +1,7 @@
+10110	IGNORE	(Angular DomSanitizer - reviewed)
+10096	IGNORE	(Constants numeriques de librairies - reviewed)
+10027	IGNORE	(node_modules/rxjs dans commentaire de bundle - faux positif)
+10109	IGNORE	(Application SPA - informatif)
+10049	IGNORE	(Cache-control volontairement no-store)
+10021	FAIL	(X-Content-Type-Options Header Missing)
+90004	FAIL	(Cross-Origin-Resource-Policy Header Missing or Invalid)

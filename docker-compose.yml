@@ -1,0 +1,21 @@
+services:
+
+  mysql:
+    image: mysql:8.4
+    container_name: devsecops-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: devsecops_db
+      MYSQL_USER: devsecops
+      MYSQL_PASSWORD: devsecops123
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

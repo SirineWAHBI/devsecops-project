@@ -1,0 +1,46 @@
+.container {
+  width: 400px;
+  margin: 60px auto;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.error {
+  color: #d32f2f;
+  font-size: 14px;
+}
+
+.error p {
+  margin: 5px 0;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  cursor: pointer;
+}
